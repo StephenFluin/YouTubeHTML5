@@ -77,20 +77,19 @@ if (video_id != null && video_hash != null) {
 		player.replaceChild(video, player.firstChild);
 		
 		var options = document.createElement('div');
-		
-		alert("javascript working.");
+
 		options.innerHTML = " <form onsubmit='return false;' style='color:white;background-color:black;' id='html5-options'>" +
 		"<h1>YouTube HTML 5 Options</h1>" + 
 		"<label><input type='checkbox' name='autoplay' id='html5-autoplay'/> Autoplay Videos</label>" +
 		"<label><input type='checkbox' name='preload' id='html5-preload'/> Preload Videos</label>" +
 		"<label><input type='checkbox' name='onlysd' id='html5-onlysd'/> Show only Standard Definition Videos</label><button id='html5-save' style='color:white;border:1px solid blue;'>Save</button>" +
-		"<!--<a href='" + hd.src + "' target='_blank'>Download</a>--><button id='html5-big' style='color:white;border:1px solid blue;'>Big</button>-->" +
+		//"<!--<a href='" + hd.src + "' target='_blank'>Download</a><button id='html5-big' style='color:white;border:1px solid blue;'>Big</button>-->" +
 		"<div><em>Note, autobuffer/preload is ignored until <a href='http://code.google.com/p/chromium/issues/detail?id=16482'>Issue 16482</a> is fixed.</em></div><div id='html5-settings'></div>" + 
 		"</form>";
-		alert("javascript working 2");
+		
 		player.appendChild(options);
 		document.getElementById('html5-save').onclick = save_options;
-		document.getElementById('html5-big').onclick = makeItBig;
+		//document.getElementById('html5-big').onclick = makeItBig;
 		
 		
 		load_options();
