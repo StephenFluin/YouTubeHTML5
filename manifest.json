@@ -1,5 +1,5 @@
 {
-"update_url":"http://mortalpowers.com/extensions/html5.xml",
+"update_url":"http://clients2.google.com/service/update2/crx",
   "name": "YouTube HTML5-ifier",
   "version": "1.1.5",
   "description": "Replaces the standard YouTube flash player with an HTML5 video element.",
