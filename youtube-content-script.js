@@ -9,6 +9,8 @@ var video_hash = null;
 var video_player = document.getElementById('movie_player');
 var mp4_video_src = null;
 
+
+
 // If we are on a valid youtube page with a movie player.
 if (video_player) {
 	// Create MP4 download url
@@ -66,10 +68,28 @@ if (video_id != null && video_hash != null) {
 		video.autoplay = (window.localStorage["autoplay"] == "true");
 		video.controls = true;
 		video.autobuffer = (window.localStorage["preload"] == "true");
+		
+		// Get the offset of the video (@TODO make this a real function somehow)
+		
+		var offset = 0;
+		var offsetPattern = /t=((\d+)m)?((\d+)s)/i;
+		result =  parent.location.hash.match(offsetPattern);
+
+		if(result) {
+			offset += parseInt(result[2])*60;
+			offset += parseInt(result[4]);
+		}
+		if(!video.currentTime) {
+			// alert("Chromium doesn't yet support <video> time offsets.");
+		} else {
+			video.currentTime = offset;
+		}
 		video.style.width='100%';
 		if(!window.localStorage["onlysd"] || window.localStorage["onlysd"] == "false") {
 			video.appendChild(hd);
 		}
+		
+		
 		
 		
 		video.appendChild(std);
@@ -158,3 +178,4 @@ function makeItBig() {
 function makeItSmall() {
 
 }
+
