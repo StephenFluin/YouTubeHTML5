@@ -9,6 +9,7 @@ var video_hash = null;
 var video_player = document.getElementById('movie_player');
 var mp4_video_src = null;
 
+var replaced_player = null;
 
 
 // If we are on a valid youtube page with a movie player.
@@ -43,8 +44,6 @@ if (video_player) {
 }
 
 if (video_id != null && video_hash != null) {
-	//alert("localstorage is " + window.localStorage + " and onlysd is " + window.localStorage["onlysd"]);
-	//alert("autoplay is " + window.localStorage["autoplay"]);
 	if(window.localStorage["onlysd"] == "true"){
 		//alert("skipping hd option.");
 	}  else {
@@ -63,55 +62,61 @@ if (video_id != null && video_hash != null) {
 		player = document.getElementById('playnav-player');
 	}
 	if (player) {
-		var video = document.createElement('video');
-		video.id = "html5-player";
-		video.autoplay = (window.localStorage["autoplay"] == "true");
-		video.controls = true;
-		video.autobuffer = (window.localStorage["preload"] == "true");
-		
-		// Get the offset of the video (@TODO make this a real function somehow)
-		
-		var offset = 0;
-		var offsetPattern = /t=((\d+)m)?((\d+)s)/i;
-		result =  parent.location.hash.match(offsetPattern);
-
-		if(result) {
-			offset += parseInt(result[2])*60;
-			offset += parseInt(result[4]);
-		}
-		if(!video.currentTime) {
-			// alert("Chromium doesn't yet support <video> time offsets.");
-		} else {
-			video.currentTime = offset;
-		}
-		video.style.width='100%';
-		if(!window.localStorage["onlysd"] || window.localStorage["onlysd"] == "false") {
-			video.appendChild(hd);
-		}
-		
-		
-		
-		
-		video.appendChild(std);
-		video.appendChild(old);
-		player.replaceChild(video, player.firstChild);
 		
 		var options = document.createElement('div');
-
 		options.innerHTML = " <form onsubmit='return false;' style='color:white;background-color:black;' id='html5-options'>" +
 		"<h1>YouTube HTML 5 Options</h1>" + 
 		"<label><input type='checkbox' name='autoplay' id='html5-autoplay'/> Autoplay Videos</label>" +
 		"<label><input type='checkbox' name='preload' id='html5-preload'/> Preload Videos</label>" +
-		"<label><input type='checkbox' name='onlysd' id='html5-onlysd'/> Show only Standard Definition Videos</label><button id='html5-save' style='color:white;border:1px solid blue;'>Save</button>" +
-		//"<!--<a href='" + hd.src + "' target='_blank'>Download</a><button id='html5-big' style='color:white;border:1px solid blue;'>Big</button>-->" +
+		"<label><input type='checkbox' name='onlysd' id='html5-onlysd'/> Show only Standard Definition Videos</label><button id='html5-save' style='color:white;border:1px solid blue;'>Save</button><button id='html5-disable' style='margin-left:100px;color:white;border:1px solid blue;'>Disable</button>" +
 		"<div><em>Note, autobuffer/preload is ignored until <a href='http://code.google.com/p/chromium/issues/detail?id=16482'>Issue 16482</a> is fixed.</em></div><div id='html5-settings'></div>" + 
 		"</form>";
-		
 		player.appendChild(options);
 		document.getElementById('html5-save').onclick = save_options;
-		//document.getElementById('html5-big').onclick = makeItBig;
+		document.getElementById('html5-disable').onclick = disable_player;
 		
-		
+	
+		// This video hasn't had the HTML5 version disabled, so replace it.
+		if(!window.localStorage["html5-disabledvideos"+video_id] ||  window.localStorage["html5-disabledvideos"+ video_id] != "disabled") {
+				
+			var video = document.createElement('video');
+			video.id = "html5-player";
+			video.autoplay = (window.localStorage["autoplay"] == "true");
+			video.controls = true;
+			video.autobuffer = (window.localStorage["preload"] == "true");
+			
+			// New Volume change tracking - doesn't work.
+			video.volumechange = volume_change;
+			
+			// Get the offset of the video (@TODO make this a real function somehow)
+			var offset = 0;
+			var offsetPattern = /t=((\d+)m)?((\d+)s)/i;
+			result =  parent.location.hash.match(offsetPattern);
+
+			if(result) {
+				offset += parseInt(result[2])*60;
+				offset += parseInt(result[4]);
+			}
+			if(!video.currentTime) {
+				// alert("Chromium doesn't yet support <video> time offsets.");
+			} else {
+				video.currentTime = offset;
+			}
+			video.style.width='100%';
+			if(!window.localStorage["onlysd"] || window.localStorage["onlysd"] == "false") {
+				video.appendChild(hd);
+			}
+			
+			
+			
+			
+			video.appendChild(std);
+			video.appendChild(old);
+			replaced_player = player.firstChild;
+			player.replaceChild(video, player.firstChild);
+		} else {
+			document.getElementById("html5-disable").style.display="none";
+		}
 		load_options();
 	}
 } else {
@@ -163,19 +168,18 @@ function load_options() {
 	preload.checked = p;
 	autoplay.checked = a;
 	onlySD.checked = o
+	window.localStorage["html5-disabledvideos" + video_id] = "enabled";
 	
 }
-function makeItBig() {
-	var vid =  document.getElementById("html5-player");
-	vid.style.position = 'absolute';
-	vid.style.top = "0px";
-	vid.style.left = "0px";
-	vid.style.width = document.innerWidth;
-	vid.style.height = document.innerHeight;
-	vid.style.index = '400';
+function volume_change(event) {
+	alert("Volume change with " + event);
+}
+function disable_player() {
+	var tmp = player.firstChild;
+	player.replaceChild(replaced_player, player.firstChild);
+	replaced_player = tmp;
+	window.localStorage["html5-disabledvideos" + video_id] = "disabled";
+	
 }
 
-function makeItSmall() {
-
-}
 
