@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html><head><script type="text/javascript">
+
+// regexp which locates the required call to yt.setConfig(...) which contains
+// the data we need for retriving videos
+var ytcfg = /yt\.setConfig\((\{[\s\S]*?\})\);/gm;
+
+// listens for requests coming from the content script(s)
+chrome.extension.onRequest.addListener(function(request, sender, sendResponse) {
+    // since a youtube page is being modified, show the page action
+		// to show that something is being done. 
+		chrome.pageAction.show(sender.tab.id);
+		
+		// Retrieve the video data and return it to the content script
+    getVideoInfo(request.video_id, function(data) {
+			sendResponse(data);
+    });
+});
+
+chrome.pageAction.onClicked.addListener(function(tab) {
+	console.log("page action clicked");
+});
+
+/**
+ * This function requests the YouTube view page for the supplied video id
+ * and extracts some of the critical information needed, which is embedded
+ * within calls to 'yt.setConfig(...)'.
+ * 
+ * @param videoId the videoId to look up
+ * @param callback a callback to receive the data once retreived
+ */
+function getVideoInfo(videoId, callback) {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "http://www.youtube.com/watch?v=" + videoId, true);
+  xhr.send();
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState == 4) {
+			var t = xhr.responseText;
+
+			// locate the call to yt.setConfig which supplies most
+			// of the video information and parameters for the flash
+			// player
+			var match = t.match(ytcfg);
+			
+			// the second call is the one we want
+			var config = match[1];
+
+      // Create a fake target function to be called, as well as the
+			// other few functions the code expects to see. This will provide
+			// be called by the eval() below and the JSON data will be providd
+			// through our setConfig function.
+			
+			var yt = {
+				'setConfig': function(data) {
+          // Got the data we were looking for
+					callback(data);
+				},
+				'flash': {
+					'canPlayV9Swf': function() {
+						return true;
+					},
+					'canPlayH264Videos': function() {
+						return true;
+					}
+				}
+			}
+			
+      // The options object contains some conditional logic so normal
+      // attempts to parse as JSON will fail. So eval it must be for
+      // now :-(
+			eval(config);
+    }
+  }  
+}
+</script></head><body></body></html>
