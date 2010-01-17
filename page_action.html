@@ -1,6 +1,27 @@
 <html>
-	<body>
-    <h1>Page Action</h1>
-		<h2><tt>(TODO)</tt></h2>
-  </body>
+<head>
+<style>
+	body {color: black;}
+</style>
+<script>
+function main() {
+	var bg = chrome.extension.getBackgroundPage();
+	content = "bg is " + bg;
+	content += "Window localstorage contains: " + bg.localStorage["ythtml5_options"];
+	
+	
+	
+	var contentBox = document.getElementById("content");
+	contentBox.innerHTML = content;
+	
+	
+}
+</script>
+</head>
+<body onload="main()">
+	<h1>HTML5 Youtube</h1>
+	<div id="content">
+		<h2>Loading...</h2>
+	</div>
+</body>
 </html>

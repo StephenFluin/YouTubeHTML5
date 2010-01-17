@@ -17,6 +17,12 @@
 /**
  * Content script which performs the modifications to the YouTube video page.
  */
+/**
+ * Good Example URL: http://www.youtube.com/watch?v=0SARbwvhupQ
+ * Working HTML5 URL: http://www.youtube.com/get_video?fmt=18&video_id=0SARbwvhupQ&t=vjVQa1PpcFMDnWMlHdz-GzYvfeg6a6VBojwZ7yIf2DM%3D
+ * Example uRL: http://www.youtube.com/watch?v=LLk4rsCNFFU
+ * Becomes HTML5: http://www.youtube.com/get_video?fmt=18&video_id=LLk4rsCNFFU&t=vjVQa1PpcFOpCMdMpQFKXVpikChzZ-Pc2jzmpXxCuoA%3D
+ */
 // used for logging
 var TAG = "[YouTubeHTML5] ";
 
@@ -31,7 +37,7 @@ var options = {
 options = load_options();
 var video_id = get_video_id();
 var disabled = !!(options.disabled_videos[video_id]);
-var mode = "flash"; // or "html5"
+var mode = disabled ? "flash" : "html5"; // or "html5"
 var video_data = {};
 var sources = {};
 var flash_html;
@@ -49,25 +55,26 @@ if (!!player_div) {
     // save for restoration later
     flash_html = player_div.firstChild.outerHTML;
     
-    player_div.appendChild(create_options());
+	if(disabled) {
+		player_div.appendChild(create_options());
+	}
     
     load_data(video_id, function(data) {
-        video_data = data;
-        
-        // select 22 if hd available and requested,
-        // else select 18
-        // else not supported (until FLV support is fixed)
-        var fmt = data.hd && (!!data.formats[22]) ? "22" : (!!data.formats[18]) ? "18" : "";
-        
-        if (mode == "html5" && fmt == "") {
-            console.warn("No compatible video format is available for this browser's HTML5 implementation.");
-            mode = "flash";
-        }
-        
-        if (!disabled) {
-            switch_mode();
-        }
+		video_data = data;
+
+		// 35 - 4.4MB flv
+		// 34 - 2.9MB flv
+		// 5 - 1.2MB flv
+		// 22 - HD mp4
+		// 18 - SD mp4
+
+		if(!disabled) {
+			// In channels our XHR never somes back, so how do we handle them and get the data without parsing the in-DOM flash object?
+			render_mode();
+		}
+
     });
+    
 }
 
 function load_data(video_id, load_callback) {
@@ -123,53 +130,25 @@ function load_data(video_id, load_callback) {
 }
 
 /**
- * Swaps the Flash player with the HTML5 Video (and back)
+ * Swaps the Flash player with the HTML5 Video (and back). Mode is the mode we are trying to use.
  * Uses globals:
  *   player_div, flash_html, video_data, format
  */
-function switch_mode() {
-    if (mode == "flash") {
+function render_mode() {
+    if (mode == "html5") {
         if (options.preferhd && !video_data.hd) {
             console.warn(TAG + "HD format is not available for this video.");
         }
-        
-        var fmt = "";
-        
-        // For now, Chrome will only play back videos in MPEG4 containers, not FLV.
-        var fmt18_available = (!!video_data.formats[18]); // ?? (600x360?)
-        var fmt22_available = (!!video_data.formats[22]); // 720p
-        var fmt37_available = (!!video_data.formats[37]); // 1080p TODO
-        // This logic is a little complicated but it works for now since there's only two working formats.
-        // Later, the available formats should probably be ranked and sorted to select the right one.
-        
-        if (options.preferhd && fmt22_available) {
-            fmt = "22";
-        }
-        else 
-            if (fmt18_available) {
-                fmt = "18";
-            }
-            else 
-                if (fmt22_available) {
-                    fmt = "22"; // if fmt=18 not available use HD, no other format will work
-                    console.warn(TAG + "Forcing HD mode since it's the only MPEG4 stream available.");
-                }
-                else {
-                    console.warn(TAG + "No compatible video formats are available (FLV only).")
-                    return "not_supported";
-                }
-        
-        mode = "html5";
+        fmt = "22";
+
         player_div.innerHTML = "";
         player_div.appendChild(create_html5_video(video_data, fmt));
         player_div.appendChild(create_options());
     }
     else {
-        mode = "flash";
         player_div.innerHTML = flash_html;
         player_div.appendChild(create_options());
     }
-    return "ok";
 }
 
 function create_html5_video(video_data, format) {
@@ -187,21 +166,24 @@ function create_html5_video(video_data, format) {
         html5_video.setAttribute('autoplay', 'autoplay');
     
     html5_video.addEventListener('error', function() {
-        switch (video.error.code) {
-            case 1:
-                console.error(TAG + "VIDEO: MEDIA_ERR_ABORTED");
-                break;
-            case 2:
-                console.error(TAG + "VIDEO: MEDIA_ERR_NETWORK");
-                break;
-            case 3:
-                console.error(TAG + "VIDEO: MEDIA_ERR_DECODE");
-                break;
-            case 4:
-                console.error(TAG + "VIDEO: MEDIA_ERR_SRC_NOT_SUPPORTED");
-                break;
-        }
-    });
+		// What is this video variable?  What scope does it come from?
+		if(video) {
+		switch (video.error.code) {
+			case 1:
+				console.error(TAG + "VIDEO: MEDIA_ERR_ABORTED");
+				break;
+			case 2:
+				console.error(TAG + "VIDEO: MEDIA_ERR_NETWORK");
+				break;
+			case 3:
+				console.error(TAG + "VIDEO: MEDIA_ERR_DECODE");
+				break;
+			case 4:
+				console.error(TAG + "VIDEO: MEDIA_ERR_SRC_NOT_SUPPORTED");
+				break;
+		}
+		}
+	});
     
     html5_video.addEventListener('loadedmetadata', function() {
         console.log(TAG + "VIDEO: loadedmetadata (width: " + html5_video.videoWidth + ", height: " + html5_video.videoHeight + ", duration: " + html5_video.duration + ")");
@@ -216,12 +198,20 @@ function create_html5_video(video_data, format) {
         console.log(TAG + "VIDEO: dataloaded");
     });
     
-    //html5_video.addEventListener('progress', function() {
-    //    console.log(TAG + "VIDEO: progress");
-    //});
+
+	if(!!options.prefer_hd){
+			var hd = document.createElement("source");
+			hd.src = 'http://www.youtube.com/get_video?fmt=22&video_id=' + video_data.video_id + '&t=' + video_data.t;  
+			html5_video.appendChild(hd)
+	}
+     var std = document.createElement("source");
+	std.src = 'http://www.youtube.com/get_video?fmt=18&video_id=' + video_data.video_id + '&t=' +  video_data.t;
+	var old = document.createElement("source");
+	old.src = 'http://www.youtube.com/get_video?video_id=' + video_data.video_id + '&t=' + video_data.t;
     
-    var src = "http://www.youtube.com/get_video?fmt=" + format + "&video_id=" + video_data.video_id + "&t=" + video_data.t;
-    html5_video.setAttribute('src', src);
+    
+    html5_video.appendChild(std);
+    html5_video.appendChild(old);
     
     return html5_video;
 }
@@ -236,13 +226,10 @@ function create_options() {
     "<label><input type='checkbox' id='html5-preferhd'/> Show HD when available</label>" +
     "<button id='html5-disable' style='margin-left:100px;color:white;border:1px solid blue;'>" +
     (mode == "flash" ? "Switch to HTML5" : "Switch to Flash") +
-    "</button>" +
-    "<div><em>Note, autobuffer/preload is ignored until " +
-    "<a href='http://code.google.com/p/chromium/issues/detail?id=16482'>Issue 16482</a>" +
-    "is fixed.</em></div>";
+    "</button>";
     player_div.appendChild(optionsDiv);
     
-    console.debug("autoplay");
+    console.debug("checking autoplay");
     var ap = document.getElementById('html5-autoplay');
     ap.checked = options.autoplay;
     ap.onchange = function(e) {
@@ -250,7 +237,7 @@ function create_options() {
         save_options();
     };
     
-    console.debug("preload");
+    console.debug("checking preload");
     var pl = document.getElementById('html5-preload');
     pl.checked = options.preload;
     pl.onchange = function(e) {
@@ -258,7 +245,7 @@ function create_options() {
         save_options();
     };
     
-    console.debug("preferhd");
+    console.debug("checking preferhd");
     var hd = document.getElementById('html5-preferhd');
     hd.checked = options.preferhd;
     hd.onchange = function(e) {
@@ -266,17 +253,14 @@ function create_options() {
         save_options();
     };
     
-    console.debug("html5-disable");
+    console.debug("checking and setting html5-disable");
     document.getElementById('html5-disable').onclick = function(e) {
-        if (switch_mode() == "not_supported") {
-            alert("Sorry, this video has no formats compatible with this browser's HTML video support.");
-        }
-        else {
+		mode = ( mode == "flash" ? "html5" : "flash");
+		render_mode();
             var disabled = !options.disabled_videos[video_id];
             options.disabled_videos[video_id] = disabled;
             save_options();
-            e.target.innerText = mode == "flash" ? "Switch to HTML5" : "Switch to Flash";
-        }
+            e.target.innerText = (mode == "flash" ? "Switch to HTML5" : "Switch to Flash");
     };
     
     return optionsDiv;
